@@ -36,6 +36,11 @@ async function sendTelegramPhoto(caption, filePath) {
 
     try {
         const fileBuffer = fs.readFileSync(filePath);
+        const kyivTimeStr = new Date().toLocaleString("en-US", { timeZone: "Europe/Kyiv" });
+        const currentHour = new Date(kyivTimeStr).getHours(); // Поверне число від 0 до 23
+
+        // 2. Перевіряємо, чи зараз ніч (більше або дорівнює 20:00 АБО менше 8:00)
+        const isNightTime = currentHour >= 20 || currentHour < 8;
 
         const sendPromises = TG_CHAT_IDS.map(async (chatId) => {
             try {
@@ -46,7 +51,9 @@ async function sendTelegramPhoto(caption, filePath) {
                 
                 const blob = new Blob([fileBuffer], { type: 'image/png' });
                 formData.append('photo', blob, 'screenshot.png');
-
+                if (isNightTime) {
+                    formData.append('disable_notification', 'true');
+                }
                 const response = await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendPhoto`, {
                     method: 'POST',
                     body: formData
