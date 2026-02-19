@@ -137,7 +137,7 @@ async function run() {
 
             try {
                 // Збільшено час завантаження
-                await page.goto(url);
+                await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
                 await new Promise(r => setTimeout(r, 3*15000));
 
                 // Збільшено таймаути до 50 секунд
