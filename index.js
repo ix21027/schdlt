@@ -99,7 +99,7 @@ async function run() {
             args: [
                 "--no-sandbox", 
                 "--disable-setuid-sandbox", 
-                "--start-maximized",
+                "--window-size=600,1080",
                 "--disable-dev-shm-usage", 
                 "--disable-gpu",
                 "--no-zygote",
@@ -139,18 +139,17 @@ async function run() {
         const submitButtonSelector = '#edit-submit-detailed-search';
         const tableSelector = ".disconnection-detailed-table-container";
 
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        await new Promise(r => setTimeout(r, 3*15000));
+        console.log("v3");
+        
+        await page.waitForSelector(radioLabelSelector, { timeout: 50000 });
+        await page.click(radioLabelSelector);
+
         for (const account of ACCOUNTS) {
             console.log(`\n--- Обробка рахунку: ${account} ---`);
-                await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-                await new Promise(r => setTimeout(r, 3*15000));
-                console.log("v2");
-                // Збільшено таймаути до 50 секунд
-                await page.waitForSelector(radioLabelSelector, { timeout: 50000 });
-                await page.click(radioLabelSelector);
+                
             try {
-                // Збільшено час завантаження
-                
-                
                 await page.waitForSelector(inputSelector, { timeout: 50000 });
                 await page.click(inputSelector);
                 
@@ -210,9 +209,6 @@ async function run() {
                 } else {
                     console.log(`✅ Розклад без змін для ${account}.`);
                 }
-
-                // Очищення сторінки для економії пам'яті
-                await page.goto('about:blank');
 
             } catch (innerError) {
                 console.error(`❌ Помилка для рахунку ${account}:`, innerError.message);
