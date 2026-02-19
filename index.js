@@ -77,6 +77,7 @@ async function run() {
     const { browser, page } = await connect({
         headless: false,
         turnstile: true,
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable',
         args: ["--no-sandbox", "--disable-setuid-sandbox", "--start-maximized"],
         connectOption: { defaultViewport: null }
     });
