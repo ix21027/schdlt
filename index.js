@@ -229,12 +229,6 @@ async function run() {
             console.log("Закриваємо браузер...");
             await browser.close();
         }
-        
-        // ПРИМУСОВЕ ОЧИЩЕННЯ ПАМ'ЯТІ (Спрацює завдяки --expose-gc у Dockerfile)
-        if (typeof global.gc === 'function') {
-            global.gc();
-            console.log("🧹 Пам'ять очищено (Garbage Collector)");
-        }
     }
 }
 
