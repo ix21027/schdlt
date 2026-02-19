@@ -1,28 +1,32 @@
 const { connect } = require("puppeteer-real-browser");
 const fs = require('fs');
 const cron = require('node-cron');
+const http = require('http');
 
 // --- НАЛАШТУВАННЯ TELEGRAM ---
 const TG_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
-// Отримуємо ID чатів (масив)
 const TG_CHAT_IDS = process.env.TELEGRAM_CHAT_ID 
     ? process.env.TELEGRAM_CHAT_ID.split(',').map(id => id.trim()).filter(id => id) 
     : [];
 
-// --- ПАРСИНГ НАЗВ АКАУНТІВ З ENV ---
-// Формат рядка: "ID:NAME,ID:NAME"
+// --- ПАРСИНГ АКАУНТІВ ТА НАЗВ ---
+const ACCOUNTS = [];
 const ACCOUNT_NAMES = {};
+
 if (process.env.ACCOUNT_NAMES_MAP) {
     const pairs = process.env.ACCOUNT_NAMES_MAP.split(',');
     pairs.forEach(pair => {
         const [id, name] = pair.split(':');
-        if (id && name) {
-            ACCOUNT_NAMES[Number(id.trim())] = name.trim();
+        if (id && id.trim()) {
+            const cleanId = id.trim();
+            const cleanName = name ? name.trim() : cleanId;
+            ACCOUNTS.push(cleanId);
+            ACCOUNT_NAMES[cleanId] = cleanName;
         }
     });
 }
-const ACCOUNTS = Object.keys(ACCOUNT_NAMES);
+
 // --- ФУНКЦІЯ ВІДПРАВКИ В TELEGRAM ---
 async function sendTelegramPhoto(caption, filePath) {
     if (!TG_TOKEN || TG_CHAT_IDS.length === 0) {
@@ -66,42 +70,84 @@ async function sendTelegramPhoto(caption, filePath) {
     }
 }
 
+// --- ОСНОВНА ФУНКЦІЯ ПЕРЕВІРКИ ---
 async function run() {
-    console.log("=== ЗАПУСК СКРИПТА (FINAL) ===");
+    console.log(`\n=== ЗАПУСК ПЕРЕВІРКИ: ${new Date().toLocaleString('uk-UA')} ===`);
 
     if (ACCOUNTS.length === 0) {
-        console.error("❌ ПОМИЛКА: Не вказано жодного рахунку в змінній 'IDS'!");
-        process.exit(1);
+        console.error("❌ ПОМИЛКА: Змінна 'ACCOUNT_NAMES_MAP' пуста!");
+        return; // Виходимо з функції, але не вбиваємо процес (бо це сервер)
     }
 
-    const { browser, page } = await connect({
-        headless: false,
-        turnstile: true,
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable',
-        args: ["--no-sandbox", "--disable-setuid-sandbox", "--start-maximized"],
-        connectOption: { defaultViewport: null }
-    });
+    let browser;
+    let page;
 
     try {
-        const url = process.env.LINK;
+        console.log("Відкриваємо браузер...");
+        const connection = await connect({
+            headless: false,
+            turnstile: true,
+            // Явний шлях до Chrome (для Docker)
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable',
+            // Оптимізація пам'яті та процесора
+            args: [
+                "--no-sandbox", 
+                "--disable-setuid-sandbox", 
+                "--start-maximized",
+                "--disable-dev-shm-usage", // Важливо для Docker!
+                "--disable-gpu",
+                "--no-zygote",
+                "--disable-extensions",
+                "--disable-accelerated-2d-canvas"
+            ],
+            connectOption: { defaultViewport: null }
+        });
+        browser = connection.browser;
+        page = connection.page;
+
+        // --- БЛОКУВАННЯ ЗАЙВОГО ТРАФІКУ ---
+        await page.setRequestInterception(true);
+        page.on('request', (request) => {
+            const resourceType = request.resourceType();
+            const url = request.url();
+
+            // Блокуємо шрифти, відео, картинки (окрім капчі, якщо є) і аналітику
+            if (
+                resourceType === 'font' || 
+                resourceType === 'media' || 
+                url.includes('google-analytics') || 
+                url.includes('doubleclick') ||
+                url.includes('facebook')
+            ) {
+                request.abort();
+            } else {
+                request.continue();
+            }
+        });
+
+    } catch (err) {
+        console.error("❌ Помилка запуску браузера:", err);
+        return;
+    }
+
+    try {
+        const url = process.env.LINK || 'https://voe.com.ua/disconnection/detailed';
         
         const radioLabelSelector = "div.form-item.form__item.form__item--radio.form__item--search-type.form__item--radio--2 > label";
         const inputSelector = 'input[data-drupal-selector="edit-personal-account"]'; 
+        const submitButtonSelector = '#edit-submit-detailed-search';
         const tableSelector = ".disconnection-detailed-table-container";
 
         for (const account of ACCOUNTS) {
             console.log(`\n--- Обробка рахунку: ${account} ---`);
 
             try {
-                // 1. Навігація (всередині циклу для надійності)
                 await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-                await new Promise(r => setTimeout(r, 15000));
+                await new Promise(r => setTimeout(r, 8000));
 
-                // 2. Вибір типу пошуку
                 await page.waitForSelector(radioLabelSelector, { timeout: 10000 });
                 await page.click(radioLabelSelector);
                 
-                // 3. Введення рахунку
                 await page.waitForSelector(inputSelector, { timeout: 10000 });
                 await page.click(inputSelector);
                 
@@ -110,53 +156,41 @@ async function run() {
                 await page.keyboard.up('Control');
                 await page.keyboard.press('Backspace');
                 
-                await page.type(inputSelector, account); 
- 
-                await new Promise(r => setTimeout(r, 2000));
-                // 4. Пошук
-                await page.keyboard.press('Enter');
+                await page.type(inputSelector, account, { delay: 50 }); 
 
-                // 5. Очікування таблиці
-                await page.waitForSelector(tableSelector, { timeout: 20000 });
-                await new Promise(r => setTimeout(r, 5000));
-
-                await page.evaluate(() => {
-                // Цей код виконується всередині браузера
-                    const selector = "body > div.dialog-off-canvas-main-canvas > div > header > div.site-header-middle > button";
-                    const element = document.querySelector(selector);
-    
-                    if (element) {
-                        element.remove();
-                    }
-                });
-            
-                // === ПЕРЕВІРКА ЗМІН ===
-                const rawHTML = await page.$eval(tableSelector, el => el.innerHTML);
-                
-                // 2. Видаляємо всі пробіли, переноси рядків (\n), табуляцію (\t)
-                // Це перетворить "<div>  text  </div>" на "<div>text</div>"
-                const currentText = rawHTML.replace(/\s+/g, '');
-                
-                
-                const stateFile = `state_${account}.txt`;
-                let previousText = "";
-
-                if (fs.existsSync(stateFile)) {
-                    previousText = fs.readFileSync(stateFile, 'utf8');
+                try {
+                    await page.waitForSelector(submitButtonSelector, { timeout: 3000 });
+                    await page.click(submitButtonSelector);
+                } catch (btnErr) {
+                    console.log("Кнопку не знайдено, пробуємо Enter...");
+                    await page.keyboard.press('Enter');
                 }
 
-                if (currentText !== previousText) {
+                await page.waitForSelector(tableSelector, { timeout: 25000 });
+                await new Promise(r => setTimeout(r, 2000));
+
+                // === ОТРИМАННЯ ТА ОЧИЩЕННЯ HTML ===
+                const rawHTML = await page.$eval(tableSelector, el => el.innerHTML);
+                const currentContent = rawHTML.replace(/\s+/g, '');
+                
+                const stateFile = `state_${account}.txt`;
+                let previousContent = "";
+
+                if (fs.existsSync(stateFile)) {
+                    previousContent = fs.readFileSync(stateFile, 'utf8').replace(/\s+/g, '');
+                }
+
+                if (currentContent !== previousContent) {
                     console.log(`⚠️ УВАГА: РОЗКЛАД ЗМІНИВСЯ для ${account}!`);
                     
-                    fs.writeFileSync(stateFile, currentText);
+                    fs.writeFileSync(stateFile, currentContent);
                     
                     const element = await page.$(tableSelector);
                     const filename = `schedule_${account}_CHANGED.png`;
                     await element.screenshot({ path: filename });
                     console.log(`📸 Скріншот збережено: ${filename}`);
 
-                    // Формування підпису
-                    const nameLabel = ACCOUNT_NAMES[account] ? ACCOUNT_NAMES[account] : account;
+                    const nameLabel = ACCOUNT_NAMES[account];
                    
                     await sendTelegramPhoto(nameLabel, filename);
 
@@ -164,30 +198,47 @@ async function run() {
                     console.log(`✅ Розклад без змін для ${account}.`);
                 }
 
+                // Звільнення пам'яті сторінки після обробки рахунку
+                await page.goto('about:blank');
+
             } catch (innerError) {
                 console.error(`❌ Помилка для рахунку ${account}:`, innerError.message);
-                await page.screenshot({ path: `error_${account}.png` });
+                if (page) await page.screenshot({ path: `error_${account}.png` }).catch(() => {});
             }
         }
 
     } catch (e) {
-        console.error("КРИТИЧНА ПОМИЛКА:", e);
-        process.exit(1);
+        console.error("КРИТИЧНА ПОМИЛКА ПІД ЧАС ОБРОБКИ:", e);
     } finally {
-        await browser.close();
+        // Завжди закриваємо браузер, щоб звільнити ОЗП повністю
+        if (browser) {
+            console.log("Закриваємо браузер і звільняємо пам'ять...");
+            await browser.close();
+        }
     }
 }
 
-console.log("🚀");
+// ==========================================
+// ІНІЦІАЛІЗАЦІЯ СЕРВЕРА ТА ПЛАНУВАЛЬНИКА
+// ==========================================
+
+console.log("🚀 Стартуємо бота для Koyeb...");
+
+// 1. Запускаємо перший раз відразу при старті контейнера
 run();
 
+// 2. Налаштовуємо розклад (UTC час).
+// Працює о 00, 20, 40 хвилині з 05:00 до 19:00 (за Гринвічем)
 cron.schedule('*/14 5-19 * * *', async () => {
-    console.log("⏰");
     await run();
 });
 
-const http = require('http');
+// 3. Піднімаємо веб-сервер (обов'язково для Koyeb)
+// Koyeb пінгує цей порт, щоб знати, що ваш бот не "завис"
+const PORT = process.env.PORT || 8000;
 http.createServer((req, res) => {
-    res.writeHead(200);
-    res.end('Bot is running!');
-}).listen(process.env.PORT || 8000);
+    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.end('Vinnitsia Light Schedule Bot is Running OK!\n');
+}).listen(PORT, () => {
+    console.log(`✅ Внутрішній сервер слухає порт ${PORT}`);
+});
