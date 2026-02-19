@@ -92,7 +92,7 @@ async function run() {
     try {
         console.log("Відкриваємо браузер...");
         const connection = await connect({
-            headless: true,
+            headless: false,
             turnstile: true,
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable',
             // Максимальна оптимізація пам'яті
@@ -143,7 +143,7 @@ async function run() {
             console.log(`\n--- Обробка рахунку: ${account} ---`);
                 await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
                 await new Promise(r => setTimeout(r, 3*15000));
-                console.log("v1");
+                console.log("v2");
                 // Збільшено таймаути до 50 секунд
                 await page.waitForSelector(radioLabelSelector, { timeout: 50000 });
                 await page.click(radioLabelSelector);
