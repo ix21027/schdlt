@@ -137,8 +137,8 @@ async function run() {
 
             try {
                 // Збільшено час завантаження
-                await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 2*60000 });
-                await new Promise(r => setTimeout(r, 2*15000));
+                await page.goto(url);
+                await new Promise(r => setTimeout(r, 3*15000));
 
                 // Збільшено таймаути до 50 секунд
                 await page.waitForSelector(radioLabelSelector, { timeout: 50000 });
@@ -214,7 +214,7 @@ async function run() {
                     try {
                         await page.screenshot({ path: errPath });
                         const nameLabel = ACCOUNT_NAMES[account];
-                        await sendTelegramPhoto(`⚠️ *Помилка на сайті!*\nНе вдалося перевірити об'єкт: *${nameLabel}*\nПомилка: ${innerError.message}`, errPath);
+                       // await sendTelegramPhoto(`⚠️ *Помилка на сайті!*\nНе вдалося перевірити об'єкт: *${nameLabel}*\nПомилка: ${innerError.message}`, errPath);
                     } catch (e) {
                         console.log("Не вдалося зробити скріншот помилки.");
                     }
