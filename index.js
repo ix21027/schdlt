@@ -165,6 +165,16 @@ async function run() {
                 await page.waitForSelector(tableSelector, { timeout: 50000 });
                 await new Promise(r => setTimeout(r, 15000));
 
+                await page.evaluate(() => {
+                // Цей код виконується всередині браузера
+                    const selector = "body > div.dialog-off-canvas-main-canvas > div > header > div.site-header-middle > button";
+                    const element = document.querySelector(selector);
+    
+                    if (element) {
+                        element.remove();
+                    }
+                });
+
                 // ОТРИМАННЯ ТА ОЧИЩЕННЯ HTML
                 const rawHTML = await page.$eval(tableSelector, el => el.innerHTML);
                 const currentContent = rawHTML.replace(/\s+/g, '');
