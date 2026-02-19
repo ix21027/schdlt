@@ -1,0 +1,5 @@
+node_modules
+.git
+.github
+*.png
+state_*.txt

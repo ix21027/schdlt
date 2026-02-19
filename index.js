@@ -1,5 +1,6 @@
 const { connect } = require("puppeteer-real-browser");
 const fs = require('fs');
+const cron = require('node-cron');
 
 // --- НАЛАШТУВАННЯ TELEGRAM ---
 const TG_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -173,8 +174,19 @@ async function run() {
         process.exit(1);
     } finally {
         await browser.close();
-        process.exit(0);
     }
 }
 
+console.log("🚀");
 run();
+
+cron.schedule('*/14 5-19 * * *', async () => {
+    console.log("⏰");
+    await run();
+});
+
+const http = require('http');
+http.createServer((req, res) => {
+    res.writeHead(200);
+    res.end('Bot is running!');
+}).listen(process.env.PORT || 8000);
