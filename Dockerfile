@@ -1,18 +1,24 @@
+# Використовуємо офіційний образ Node.js 20
 FROM node:25
 
-RUN apt-get update && apt-get install -y \
-    xvfb libasound2 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 \
-    libexpat1 libfontconfig1 libgbm1 libgcc1 libglib2.0-0 libgtk-3-0 \
-    libnspr4 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 \
-    libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 \
-    libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 \
-    ca-certificates fonts-liberation libappindicator1 libnss3 \
-    lsb-release xdg-utils wget \
+# 1. Встановлюємо Xvfb (віртуальний екран) та wget
+RUN apt-get update && apt-get install -y wget xvfb
+
+# 2. Завантажуємо та встановлюємо ОФІЦІЙНИЙ Google Chrome
+# Ця команда також автоматично встановить всі потрібні Linux-бібліотеки
+RUN wget -q -O google-chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+    && apt-get install -y ./google-chrome.deb \
+    && rm google-chrome.deb \
+    && apt-get install -y fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
+
+# 3. Кажемо Puppeteer не качати свій непотрібний Chromium, а використовувати наш Chrome
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
 
 WORKDIR /app
 
-COPY package.json ./
+COPY package*.json ./
 RUN npm install
 
 COPY . .
