@@ -92,7 +92,7 @@ async function run() {
     try {
         console.log("Відкриваємо браузер...");
         const connection = await connect({
-            headless: false,
+            headless: true,
             turnstile: true,
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable',
             // Максимальна оптимізація пам'яті
