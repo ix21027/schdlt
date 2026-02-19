@@ -76,7 +76,7 @@ async function run() {
 
     if (ACCOUNTS.length === 0) {
         console.error("❌ ПОМИЛКА: Змінна 'ACCOUNT_NAMES_MAP' пуста!");
-        return; // Виходимо з функції, але не вбиваємо процес (бо це сервер)
+        return; 
     }
 
     let browser;
@@ -87,38 +87,32 @@ async function run() {
         const connection = await connect({
             headless: false,
             turnstile: true,
-            // Явний шлях до Chrome (для Docker)
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable',
-            // Оптимізація пам'яті та процесора
+            // Максимальна оптимізація пам'яті
             args: [
                 "--no-sandbox", 
                 "--disable-setuid-sandbox", 
                 "--start-maximized",
-                "--disable-dev-shm-usage", // Важливо для Docker!
+                "--disable-dev-shm-usage", 
                 "--disable-gpu",
                 "--no-zygote",
                 "--disable-extensions",
-                "--disable-accelerated-2d-canvas"
+                "--disable-accelerated-2d-canvas",
+                "--disk-cache-size=1",
+                "--media-cache-size=1"
             ],
             connectOption: { defaultViewport: null }
         });
         browser = connection.browser;
         page = connection.page;
 
-        // --- БЛОКУВАННЯ ЗАЙВОГО ТРАФІКУ ---
+        // Блокування важкого трафіку (шрифти, медіа, аналітика)
         await page.setRequestInterception(true);
         page.on('request', (request) => {
             const resourceType = request.resourceType();
             const url = request.url();
 
-            // Блокуємо шрифти, відео, картинки (окрім капчі, якщо є) і аналітику
-            if (
-                resourceType === 'font' || 
-                resourceType === 'media' || 
-                url.includes('google-analytics') || 
-                url.includes('doubleclick') ||
-                url.includes('facebook')
-            ) {
+            if (resourceType === 'font' || resourceType === 'media' || url.includes('google-analytics') || url.includes('doubleclick')) {
                 request.abort();
             } else {
                 request.continue();
@@ -142,9 +136,11 @@ async function run() {
             console.log(`\n--- Обробка рахунку: ${account} ---`);
 
             try {
+                // Збільшено час завантаження
                 await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-                await new Promise(r => setTimeout(r, 8000));
+                await new Promise(r => setTimeout(r, 15000));
 
+                // Збільшено таймаути до 50 секунд
                 await page.waitForSelector(radioLabelSelector, { timeout: 50000 });
                 await page.click(radioLabelSelector);
                 
@@ -159,17 +155,17 @@ async function run() {
                 await page.type(inputSelector, account, { delay: 50 }); 
 
                 try {
-                    await page.waitForSelector(submitButtonSelector, { timeout: 3000 });
+                    await page.waitForSelector(submitButtonSelector, { timeout: 5000 });
                     await page.click(submitButtonSelector);
                 } catch (btnErr) {
                     console.log("Кнопку не знайдено, пробуємо Enter...");
                     await page.keyboard.press('Enter');
                 }
 
-                await page.waitForSelector(tableSelector, { timeout: 25000 });
+                await page.waitForSelector(tableSelector, { timeout: 50000 });
                 await new Promise(r => setTimeout(r, 2000));
 
-                // === ОТРИМАННЯ ТА ОЧИЩЕННЯ HTML ===
+                // ОТРИМАННЯ ТА ОЧИЩЕННЯ HTML
                 const rawHTML = await page.$eval(tableSelector, el => el.innerHTML);
                 const currentContent = rawHTML.replace(/\s+/g, '');
                 
@@ -191,29 +187,43 @@ async function run() {
                     console.log(`📸 Скріншот збережено: ${filename}`);
 
                     const nameLabel = ACCOUNT_NAMES[account];
-                   
+                    
                     await sendTelegramPhoto(nameLabel, filename);
 
                 } else {
                     console.log(`✅ Розклад без змін для ${account}.`);
                 }
 
-                // Звільнення пам'яті сторінки після обробки рахунку
+                // Очищення сторінки для економії пам'яті
                 await page.goto('about:blank');
 
             } catch (innerError) {
                 console.error(`❌ Помилка для рахунку ${account}:`, innerError.message);
-                if (page) await page.screenshot({ path: `error_${account}.png` }).catch(() => {});
+                if (page) {
+                    const errPath = `error_${account}.png`;
+                    try {
+                        await page.screenshot({ path: errPath });
+                        const nameLabel = ACCOUNT_NAMES[account];
+                        await sendTelegramPhoto(`⚠️ *Помилка на сайті!*\nНе вдалося перевірити об'єкт: *${nameLabel}*\nПомилка: ${innerError.message}`, errPath);
+                    } catch (e) {
+                        console.log("Не вдалося зробити скріншот помилки.");
+                    }
+                }
             }
         }
 
     } catch (e) {
         console.error("КРИТИЧНА ПОМИЛКА ПІД ЧАС ОБРОБКИ:", e);
     } finally {
-        // Завжди закриваємо браузер, щоб звільнити ОЗП повністю
         if (browser) {
-            console.log("Закриваємо браузер і звільняємо пам'ять...");
+            console.log("Закриваємо браузер...");
             await browser.close();
+        }
+        
+        // ПРИМУСОВЕ ОЧИЩЕННЯ ПАМ'ЯТІ (Спрацює завдяки --expose-gc у Dockerfile)
+        if (typeof global.gc === 'function') {
+            global.gc();
+            console.log("🧹 Пам'ять очищено (Garbage Collector)");
         }
     }
 }
@@ -224,17 +234,13 @@ async function run() {
 
 console.log("🚀 Стартуємо бота для Koyeb...");
 
-// 1. Запускаємо перший раз відразу при старті контейнера
 run();
 
-// 2. Налаштовуємо розклад (UTC час).
-// Працює о 00, 20, 40 хвилині з 05:00 до 19:00 (за Гринвічем)
-cron.schedule('*/14 5-19 * * *', async () => {
+// Кожні 20 хвилин з 05:00 до 19:00 (UTC)
+cron.schedule('0,20,40 5-19 * * *', async () => {
     await run();
 });
 
-// 3. Піднімаємо веб-сервер (обов'язково для Koyeb)
-// Koyeb пінгує цей порт, щоб знати, що ваш бот не "завис"
 const PORT = process.env.PORT || 8000;
 http.createServer((req, res) => {
     res.writeHead(200, {'Content-Type': 'text/plain'});
