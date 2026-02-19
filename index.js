@@ -98,8 +98,8 @@ async function run() {
                 "--no-zygote",
                 "--disable-extensions",
                 "--disable-accelerated-2d-canvas",
-                "--disk-cache-size=1",
-                "--media-cache-size=1"
+                // "--disk-cache-size=1", //try without them
+                // "--media-cache-size=1"
             ],
             connectOption: { defaultViewport: null }
         });
