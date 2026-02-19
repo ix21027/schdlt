@@ -94,6 +94,7 @@ async function run() {
         const connection = await connect({
             headless: false,
             turnstile: true,
+            disableXvfb: true,
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable',
             // Максимальна оптимізація пам'яті
             args: [
@@ -141,7 +142,7 @@ async function run() {
 
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
         await new Promise(r => setTimeout(r, 3*15000));
-        console.log("v3");
+        console.log("v4");
         
         await page.waitForSelector(radioLabelSelector, { timeout: 50000 });
         await page.click(radioLabelSelector);

@@ -49,5 +49,5 @@ RUN npm install
 
 COPY . .
 
-CMD ["node", "index.js"]
-# CMD ["xvfb-run", "--auto-servernum", "--server-args='-screen 0 1080x600x16'", "node", "index.js"]
+# CMD ["node", "index.js"]
+CMD ["xvfb-run", "--auto-servernum", "--server-args='-screen 0 600x1080x16'", "node", "index.js"]
