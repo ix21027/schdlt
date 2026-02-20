@@ -34,7 +34,7 @@ if (process.env.ACCOUNT_NAMES_MAP) {
  * @param {number} retries - Кількість спроб (за замовчуванням 3)
  * @param {number} delay - Пауза між спробами у мілісекундах (за замовчуванням 5000)
  */
-async function waitForSelectorWithRetry(page, selector, retries = 3, delay = 5000) {
+async function waitForSelectorWithRetry(page, selector, retries = 8, delay = 5000) {
     for (let i = 0; i < retries; i++) {
         try {
             // Пробуємо знайти елемент (даємо по 15 секунд на кожну спробу)
@@ -45,7 +45,7 @@ async function waitForSelectorWithRetry(page, selector, retries = 3, delay = 500
             
             // Якщо це була остання спроба - прокидаємо помилку далі, щоб скрипт зупинив перевірку цього рахунку
             if (i === retries - 1) {
-                throw new Error(`Елемент ${selector} не знайдено після ${retries} спроб.`);
+               console.error(`Елемент ${selector} не знайдено після ${retries} спроб.`);
             }
             
             // Робимо паузу перед наступною спробою
