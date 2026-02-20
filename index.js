@@ -203,6 +203,9 @@ async function run() {
                         element.remove();
                     }
                 });
+                
+                await new Promise(r => setTimeout(r, 4000));
+
 
                 // ОТРИМАННЯ ТА ОЧИЩЕННЯ HTML
                 const rawHTML = await page.$eval(tableSelector, el => el.innerHTML);
