@@ -187,7 +187,7 @@ async function run() {
                 
                 await page.type(inputSelector, account, { delay: 50 }); 
 
-                
+                await new Promise(r=>setTimeout(r, 1000));
                 await page.keyboard.press('Enter');
                 
 
