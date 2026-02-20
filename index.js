@@ -165,7 +165,7 @@ await page.click(radioLabelSelector);
 }
         for (const account of ACCOUNTS) {
             console.log(`\n--- Обробка рахунку: ${account} ---`);
-                
+                await new Promise(resolve => setTimeout(resolve, 1000));
             try {
                 await page.waitForSelector(inputSelector, { timeout: 50000 });
                 await page.click(inputSelector);
@@ -178,7 +178,7 @@ await page.click(radioLabelSelector);
                 await page.type(inputSelector, account, { delay: 50 }); 
 
                 try {
-                    await page.waitForSelector(submitButtonSelector, { timeout: 5000 });
+                    await page.waitForSelector(submitButtonSelector, { timeout: 1000 });
                     await page.click(submitButtonSelector);
                 } catch (btnErr) {
                     console.log("Кнопку не знайдено, пробуємо Enter...");
@@ -186,7 +186,7 @@ await page.click(radioLabelSelector);
                 }
 
                 await page.waitForSelector(tableSelector, { timeout: 50000 });
-                await new Promise(r => setTimeout(r, 15000));
+                await new Promise(r => setTimeout(r, 4000));
 
                 await page.evaluate(() => {
                 // Цей код виконується всередині браузера
