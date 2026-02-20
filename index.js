@@ -247,7 +247,7 @@ async function run() {
                     try {
                         await page.screenshot({ path: errPath });
                         const nameLabel = ACCOUNT_NAMES[account];
-                       // await sendTelegramPhoto(`⚠️ *Помилка на сайті!*\nНе вдалося перевірити об'єкт: *${nameLabel}*\nПомилка: ${innerError.message}`, errPath);
+                       await sendTelegramPhoto(`⚠️ *Помилка на сайті!*\nНе вдалося перевірити об'єкт: *${nameLabel}*\nПомилка: ${innerError.message}`, errPath);
                     } catch (e) {
                         console.log("Не вдалося зробити скріншот помилки.");
                     }
