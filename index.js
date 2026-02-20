@@ -181,7 +181,7 @@ async function run() {
                 await new Promise(resolve => setTimeout(resolve, 1000));
             try {
                 waitForSelectorWithRetry(page, inputSelector);
-                await page.click(inputSelector);
+                await page.focus(inputSelector);
                 
                 await page.keyboard.down('Control');
                 await page.keyboard.press('A');
