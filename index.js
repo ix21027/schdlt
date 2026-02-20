@@ -141,8 +141,8 @@ async function run() {
         const tableSelector = ".disconnection-detailed-table-container";
 
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-        await new Promise(r => setTimeout(r, 3*15000));
-        console.log("v6 try without screen");
+        await new Promise(r => setTimeout(r, 15000));
+        
         
         await page.waitForSelector(radioLabelSelector, { timeout: 50000 });
         await page.click(radioLabelSelector);
