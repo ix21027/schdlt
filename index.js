@@ -27,6 +27,33 @@ if (process.env.ACCOUNT_NAMES_MAP) {
     });
 }
 
+/**
+ * Функція для пошуку елемента з повторними спробами
+ * @param {object} page - Сторінка Puppeteer
+ * @param {string} selector - CSS селектор елемента
+ * @param {number} retries - Кількість спроб (за замовчуванням 3)
+ * @param {number} delay - Пауза між спробами у мілісекундах (за замовчуванням 5000)
+ */
+async function waitForSelectorWithRetry(page, selector, retries = 3, delay = 5000) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            // Пробуємо знайти елемент (даємо по 15 секунд на кожну спробу)
+            await page.waitForSelector(selector, { timeout: 15000 });
+            return true; // Якщо знайшли - виходимо з функції успішно
+        } catch (error) {
+            console.log(`⏳ Спроба ${i + 1} з ${retries} не вдалася для селектора. Чекаємо ${delay / 1000} сек...`);
+            
+            // Якщо це була остання спроба - прокидаємо помилку далі, щоб скрипт зупинив перевірку цього рахунку
+            if (i === retries - 1) {
+                throw new Error(`Елемент ${selector} не знайдено після ${retries} спроб.`);
+            }
+            
+            // Робимо паузу перед наступною спробою
+            await new Promise(r => setTimeout(r, delay));
+        }
+    }
+}
+
 // --- ФУНКЦІЯ ВІДПРАВКИ В TELEGRAM ---
 async function sendTelegramPhoto(caption, filePath) {
     if (!TG_TOKEN || TG_CHAT_IDS.length === 0) {
@@ -143,31 +170,14 @@ async function run() {
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
         await new Promise(r => setTimeout(r, 15000));
         
-        try{
-try {
-    // Перша спроба (чекаємо 15 секунд)
-    await page.waitForSelector(radioLabelSelector, { timeout: 15000 });
-} catch (error) {
-    console.log("⚠️ Елемент не з'явився. Чекаємо 5 секунд і пробуємо ще раз...");
-    
-    // Робимо паузу 5 секунд
-    await new Promise(resolve => setTimeout(resolve, 15000));
-    
-    // Друга (запасна) спроба. Якщо впаде тут — піде в головний catch(innerError)
-    await page.waitForSelector(radioLabelSelector, { timeout: 15000 });
-}
-
-// Якщо дійшли сюди, значить елемент знайдено
-await page.click(radioLabelSelector);
-} catch (err) {
-        await page.waitForSelector(radioLabelSelector, { timeout: 50000 });
+        waitForSelectorWithRetry(page, radioLabelSelector)
         await page.click(radioLabelSelector);
-}
+
         for (const account of ACCOUNTS) {
             console.log(`\n--- Обробка рахунку: ${account} ---`);
                 await new Promise(resolve => setTimeout(resolve, 1000));
             try {
-                await page.waitForSelector(inputSelector, { timeout: 50000 });
+                waitForSelectorWithRetry(page, inputSelector);
                 await page.click(inputSelector);
                 
                 await page.keyboard.down('Control');
@@ -177,13 +187,9 @@ await page.click(radioLabelSelector);
                 
                 await page.type(inputSelector, account, { delay: 50 }); 
 
-                try {
-                    await page.waitForSelector(submitButtonSelector, { timeout: 1000 });
-                    await page.click(submitButtonSelector);
-                } catch (btnErr) {
-                    console.log("Кнопку не знайдено, пробуємо Enter...");
-                    await page.keyboard.press('Enter');
-                }
+                
+                await page.keyboard.press('Enter');
+                
 
                 await page.waitForSelector(tableSelector, { timeout: 50000 });
                 await new Promise(r => setTimeout(r, 4000));
