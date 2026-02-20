@@ -142,7 +142,7 @@ async function run() {
 
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
         await new Promise(r => setTimeout(r, 3*15000));
-        console.log("v5");
+        console.log("v6 try without screen");
         
         await page.waitForSelector(radioLabelSelector, { timeout: 50000 });
         await page.click(radioLabelSelector);
@@ -245,7 +245,7 @@ console.log("🚀 Стартуємо бота для Koyeb...");
 run();
 
 // Кожні 20 хвилин з 05:00 до 19:00 (UTC)
-cron.schedule('0,20,40 5-19 * * *', async () => {
+cron.schedule('*/13 * * * *', async () => {
     await run();
 });
 
