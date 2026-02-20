@@ -142,7 +142,7 @@ async function run() {
 
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
         await new Promise(r => setTimeout(r, 3*15000));
-        console.log("v4");
+        console.log("v5");
         
         await page.waitForSelector(radioLabelSelector, { timeout: 50000 });
         await page.click(radioLabelSelector);
