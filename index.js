@@ -46,7 +46,7 @@ async function waitForSelectorWithRetry(page, selector, retries = 8, delay = 500
             // Якщо це була остання спроба - прокидаємо помилку далі, щоб скрипт зупинив перевірку цього рахунку
             if (i === retries - 1) {
                 console.error(`Елемент ${selector} не знайдено після ${retries} спроб.`);
-                await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+                await page.reload();
                 await new Promise(r => setTimeout(r, 15000));
                 await page.waitForSelector(selector, { timeout: 15000 });
             }
@@ -173,16 +173,16 @@ async function run() {
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
         await new Promise(r => setTimeout(r, 15000));
         
-        waitForSelectorWithRetry(page, radioLabelSelector)
+        await waitForSelectorWithRetry(page, radioLabelSelector)
         await page.click(radioLabelSelector);
 
         for (const account of ACCOUNTS) {
             console.log(`\n--- Обробка рахунку: ${account} ---`);
                 await new Promise(resolve => setTimeout(resolve, 1000));
             try {
-                waitForSelectorWithRetry(page, inputSelector);
+               await waitForSelectorWithRetry(page, inputSelector);
                await page.click(inputSelector);
-                 await page.focus(inputSelector);
+               await page.focus(inputSelector);
                 
                 await page.keyboard.down('Control');
                 await page.keyboard.press('A');
