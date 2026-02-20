@@ -45,7 +45,10 @@ async function waitForSelectorWithRetry(page, selector, retries = 8, delay = 500
             
             // Якщо це була остання спроба - прокидаємо помилку далі, щоб скрипт зупинив перевірку цього рахунку
             if (i === retries - 1) {
-               console.error(`Елемент ${selector} не знайдено після ${retries} спроб.`);
+                console.error(`Елемент ${selector} не знайдено після ${retries} спроб.`);
+                await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+                await new Promise(r => setTimeout(r, 15000));
+                await page.waitForSelector(selector, { timeout: 15000 });
             }
             
             // Робимо паузу перед наступною спробою
