@@ -245,7 +245,7 @@ console.log("🚀 Стартуємо бота для Koyeb...");
 run();
 
 // Кожні 20 хвилин з 05:00 до 19:00 (UTC)
-cron.schedule('*/13 * * * *', async () => {
+cron.schedule('*/10 * * * *', async () => {
     await run();
 });
 
