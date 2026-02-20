@@ -143,10 +143,26 @@ async function run() {
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
         await new Promise(r => setTimeout(r, 15000));
         
-        
+        try{
+try {
+    // Перша спроба (чекаємо 15 секунд)
+    await page.waitForSelector(radioLabelSelector, { timeout: 15000 });
+} catch (error) {
+    console.log("⚠️ Елемент не з'явився. Чекаємо 5 секунд і пробуємо ще раз...");
+    
+    // Робимо паузу 5 секунд
+    await new Promise(resolve => setTimeout(resolve, 15000));
+    
+    // Друга (запасна) спроба. Якщо впаде тут — піде в головний catch(innerError)
+    await page.waitForSelector(radioLabelSelector, { timeout: 15000 });
+}
+
+// Якщо дійшли сюди, значить елемент знайдено
+await page.click(radioLabelSelector);
+} catch (err) {
         await page.waitForSelector(radioLabelSelector, { timeout: 50000 });
         await page.click(radioLabelSelector);
-
+}
         for (const account of ACCOUNTS) {
             console.log(`\n--- Обробка рахунку: ${account} ---`);
                 
